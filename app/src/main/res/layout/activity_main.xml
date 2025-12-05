@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- 主要内容区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/uploadButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="上传将包"
+            android:textSize="18sp"
+            android:layout_marginBottom="24dp"/>
+
+        <EditText
+            android:id="@+id/countInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="请输入抽取个数"
+            android:inputType="number"
+            android:textSize="16sp"
+            android:layout_marginBottom="24dp"/>
+
+        <Button
+            android:id="@+id/startButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="开始抽取"
+            android:textSize="18sp"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- 联机按钮 -->
+        <Button
+            android:id="@+id/joinRoomButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="创建/加入房间"
+            android:textSize="18sp"
+            android:backgroundTint="#4CAF50"/>
+
+    </LinearLayout>
+
+    <!-- 加载动画和提示文字 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:visibility="gone"
+            android:indeterminateTint="#2196F3"/>
+
+        <TextView
+            android:id="@+id/loadingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="正在读取中,请耐心等待..."
+            android:textSize="16sp"
+            android:textColor="#2196F3"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+</RelativeLayout>
