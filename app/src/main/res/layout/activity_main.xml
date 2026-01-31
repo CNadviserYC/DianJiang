@@ -16,7 +16,7 @@
             android:id="@+id/uploadButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="上传将包"
+            android:text="上传图包"
             android:textSize="18sp"
             android:layout_marginBottom="24dp"/>
 
@@ -45,6 +45,16 @@
             android:text="创建/加入房间"
             android:textSize="18sp"
             android:backgroundTint="#4CAF50"/>
+
+        <!-- 新增：模式切换按钮 -->
+        <Button
+            android:id="@+id/modeSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="当前:国战模式"
+            android:textSize="16sp"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="#2196F3"/>
 
     </LinearLayout>
 
