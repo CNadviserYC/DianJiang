@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -19,9 +20,16 @@ import java.io.File
 class SelectionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var displayButton: Button
+    private lateinit var titleText: TextView  // 新增
     private val selectedImages = mutableListOf<String>()
     private var imagePaths = arrayListOf<String>()
     private lateinit var adapter: ImageAdapter
+
+    // 新增：军争模式相关变量
+    private var isJunzhengMode = false
+    private var isNetworkMode = false
+    private var playerRole: String? = null
+    private var maxSelection = 2 // 默认2张，军争模式为1张
 
     // 使用新的ActivityResultLauncher替代startActivityForResult
     private val previewLauncher = registerForActivityResult(
@@ -37,14 +45,39 @@ class SelectionActivity : AppCompatActivity() {
         }
     }
 
+    // 新增：用于启动DisplayActivity的launcher
+    private val displayLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // DisplayActivity关闭后的回调，这里不需要处理
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_selection)
 
-        recyclerView = findViewById(R.id.recyclerView)
-        displayButton = findViewById(R.id.displayButton)
+        recyclerView = findViewById<RecyclerView>(R.id.recyclerView)
+        displayButton = findViewById<Button>(R.id.displayButton)
+        titleText = findViewById<TextView>(R.id.titleText)
 
         imagePaths = intent.getStringArrayListExtra("imagePaths") ?: arrayListOf()
+
+        // 新增：获取军争模式相关参数
+        isJunzhengMode = intent.getBooleanExtra("isJunzhengMode", false)
+        isNetworkMode = intent.getBooleanExtra("isNetworkMode", false)
+        playerRole = intent.getStringExtra("playerRole")
+        maxSelection = intent.getIntExtra("maxSelection", 2)
+
+        android.util.Log.d("SelectionActivity", "isJunzhengMode: $isJunzhengMode")
+        android.util.Log.d("SelectionActivity", "playerRole: $playerRole")
+        android.util.Log.d("SelectionActivity", "maxSelection: $maxSelection")
+
+        // 新增：根据模式设置标题
+        if (isJunzhengMode) {
+            titleText.text = "请选择一位武将"
+        } else {
+            titleText.text = "请选择两位武将"
+        }
 
         adapter = ImageAdapter(imagePaths)
         recyclerView.layoutManager = GridLayoutManager(this, 2)
@@ -56,7 +89,14 @@ class SelectionActivity : AppCompatActivity() {
             } else {
                 val intent = Intent(this, DisplayActivity::class.java)
                 intent.putStringArrayListExtra("selectedImages", ArrayList(selectedImages))
-                startActivity(intent)
+
+                // 新增：传递军争模式参数
+                intent.putExtra("isJunzhengMode", isJunzhengMode)
+                intent.putExtra("playerRole", playerRole)
+                intent.putExtra("isNetworkMode", isNetworkMode)
+
+                // 修改：使用launcher启动，这样需要按两次返回
+                displayLauncher.launch(intent)
             }
         }
     }
@@ -88,13 +128,20 @@ class SelectionActivity : AppCompatActivity() {
             holder.checkBox.setOnCheckedChangeListener(null)
             holder.checkBox.isChecked = selectedImages.contains(path)
 
+            // 修改：使用动态的maxSelection
             holder.checkBox.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
-                    if (selectedImages.size >= 2 && !selectedImages.contains(path)) {
+                    if (selectedImages.size >= maxSelection && !selectedImages.contains(path)) {
                         // 只有当不在列表中且已达到上限时才拒绝
                         holder.checkBox.isChecked = false
-                        Toast.makeText(this@SelectionActivity,
-                            "什么模式能选三张武将？", Toast.LENGTH_SHORT).show()
+
+                        // 根据模式显示不同提示
+                        val message = if (isJunzhengMode) {
+                            "军争模式只能选择一位武将"
+                        } else {
+                            "国战模式只能选择两位武将"
+                        }
+                        Toast.makeText(this@SelectionActivity, message, Toast.LENGTH_SHORT).show()
                     } else if (!selectedImages.contains(path)) {
                         selectedImages.add(path)
                     }
