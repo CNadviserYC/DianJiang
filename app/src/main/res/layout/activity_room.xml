@@ -51,6 +51,7 @@
         android:orientation="vertical"
         android:padding="8dp">
 
+        <!-- 国战模式控件 -->
         <EditText
             android:id="@+id/countInput"
             android:layout_width="match_parent"
@@ -59,6 +60,154 @@
             android:inputType="number"
             android:textSize="16sp"
             android:visibility="gone"/>
+
+        <!-- 新增：军争模式控件 -->
+        <LinearLayout
+            android:id="@+id/roleInputPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:background="#FFF9C4"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="军争模式 - 身份牌分配(总数需等于玩家数)"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#F57C00"
+                android:layout_marginBottom="12dp"
+                android:gravity="center"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="主公:"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"/>
+                
+                <EditText
+                    android:id="@+id/zhugongInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="主公个数"
+                    android:inputType="number"
+                    android:textSize="14sp"
+                    android:background="@android:color/white"
+                    android:padding="8dp"
+                    android:imeOptions="flagNoExtractUi"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="反贼:"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"/>
+                
+                <EditText
+                    android:id="@+id/fanzeiInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="反贼个数"
+                    android:inputType="number"
+                    android:textSize="14sp"
+                    android:background="@android:color/white"
+                    android:padding="8dp"
+                    android:imeOptions="flagNoExtractUi"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+                
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="内奸:"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"/>
+                
+                <EditText
+                    android:id="@+id/neijianInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="内奸个数"
+                    android:inputType="number"
+                    android:textSize="14sp"
+                    android:background="@android:color/white"
+                    android:padding="8dp"
+                    android:imeOptions="flagNoExtractUi"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp">
+                
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="忠臣:"
+                    android:textSize="14sp"
+                    android:gravity="center_vertical"/>
+                
+                <EditText
+                    android:id="@+id/zhongchenInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="忠臣个数"
+                    android:inputType="number"
+                    android:textSize="14sp"
+                    android:background="@android:color/white"
+                    android:padding="8dp"
+                    android:imeOptions="flagNoExtractUi"/>
+            </LinearLayout>
+
+            <!-- 军争模式抽取牌数 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="武将牌抽取设置"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#F57C00"
+                android:layout_marginBottom="8dp"
+                android:gravity="center"/>
+
+            <EditText
+                android:id="@+id/junzhengCountInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="请输入每人抽取武将牌个数"
+                android:inputType="number"
+                android:textSize="14sp"
+                android:background="@android:color/white"
+                android:padding="8dp"
+                android:imeOptions="flagNoExtractUi"/>
+
+        </LinearLayout>
 
         <Button
             android:id="@+id/startButton"
