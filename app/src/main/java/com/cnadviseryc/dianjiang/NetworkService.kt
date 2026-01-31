@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.*
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -29,9 +28,11 @@ sealed class NetworkMessage {
     data class PlayerJoined(val player: Player) : NetworkMessage()
     data class PlayerLeft(val playerId: String) : NetworkMessage()
     data class DrawStarted(val results: List<DrawResult>) : NetworkMessage()
+    data class JunzhengGameStarted(val results: List<DrawResult>, val roles: Map<String, String>) : NetworkMessage()  // 新增
     data class PlayerReady(val playerId: String) : NetworkMessage()
     data class RoomDismissed(val reason: String) : NetworkMessage()
     data class PlayerList(val players: List<Player>) : NetworkMessage()
+    data class RoomConfig(val isJunzhengMode: Boolean) : NetworkMessage()  // 新增：房间配置
 }
 
 class NetworkService(private val context: Context) {
@@ -63,8 +64,16 @@ class NetworkService(private val context: Context) {
     var localPlayerId: String = ""
     private var isCleanedUp = false  // 防止重复清理
 
+    // 新增：军争模式标志
+    private var isJunzhengMode = false
+
     // 用于临时发现服务的回调
     private var discoveryCallback: ((Boolean) -> Unit)? = null
+
+    // 新增：设置游戏模式
+    fun setJunzhengMode(junzhengMode: Boolean) {
+        isJunzhengMode = junzhengMode
+    }
 
     // 启动服务发现（用于检测房间是否存在）
     fun startDiscovery(callback: (Boolean) -> Unit) {
@@ -133,8 +142,8 @@ class NetworkService(private val context: Context) {
                 serverSocket = ServerSocket(PORT)
                 registerService()
 
-                // 添加房主为第一个玩家
-                val hostPlayer = Player(playerId, true, true)
+                // 添加房主为第一个玩家（初始状态为未准备）
+                val hostPlayer = Player(playerId, true, false)  // 修改：isReady = false
                 _players.value = listOf(hostPlayer)
 
                 // 开始接受客户端连接
@@ -390,6 +399,16 @@ class NetworkService(private val context: Context) {
                     // 通知所有客户端
                     broadcastPlayerList()
                     _networkMessages.value = NetworkMessage.PlayerJoined(newPlayer)
+
+                    // 新增：向新加入的玩家发送房间配置
+                    if (client != null) {
+                        val configMessage = JSONObject().apply {
+                            put("type", "roomConfig")
+                            put("isJunzhengMode", isJunzhengMode)
+                        }
+                        client.send(configMessage.toString())
+                        Log.d(TAG, "向玩家 $playerId 发送房间配置: isJunzhengMode=$isJunzhengMode")
+                    }
                 }
 
                 "playerList" -> {
@@ -422,6 +441,30 @@ class NetworkService(private val context: Context) {
                     _networkMessages.value = NetworkMessage.DrawStarted(results)
                 }
 
+                // 新增：处理军争模式游戏开始
+                "junzheng_game" -> {
+                    val resultsArray = json.getJSONArray("results")
+                    val results = mutableListOf<DrawResult>()
+                    for (i in 0 until resultsArray.length()) {
+                        val resultObj = resultsArray.getJSONObject(i)
+                        val numbersArray = resultObj.getJSONArray("numbers")
+                        val numbers = mutableListOf<Int>()
+                        for (j in 0 until numbersArray.length()) {
+                            numbers.add(numbersArray.getInt(j))
+                        }
+                        results.add(DrawResult(resultObj.getString("playerId"), numbers))
+                    }
+
+                    // 解析角色分配
+                    val rolesObj = json.getJSONObject("roles")
+                    val roles = mutableMapOf<String, String>()
+                    rolesObj.keys().forEach { key ->
+                        roles[key] = rolesObj.getString(key)
+                    }
+
+                    _networkMessages.value = NetworkMessage.JunzhengGameStarted(results, roles)
+                }
+
                 "ready" -> {
                     val playerId = json.getString("playerId")
                     updatePlayerReady(playerId)
@@ -431,6 +474,12 @@ class NetworkService(private val context: Context) {
                 "dismiss" -> {
                     val reason = json.optString("reason", "房主已解散房间")
                     _networkMessages.value = NetworkMessage.RoomDismissed(reason)
+                }
+
+                // 新增：接收房间配置
+                "roomConfig" -> {
+                    val isJunzhengMode = json.getBoolean("isJunzhengMode")
+                    _networkMessages.value = NetworkMessage.RoomConfig(isJunzhengMode)
                 }
             }
         } catch (e: Exception) {
@@ -499,7 +548,7 @@ class NetworkService(private val context: Context) {
         }
     }
 
-    // 房主开始抽取
+    // 房主开始抽取（国战模式）
     fun startDraw(count: Int, totalImages: Int) {
         if (!_isHost.value) return
 
@@ -536,6 +585,48 @@ class NetworkService(private val context: Context) {
             // 本地处理
             withContext(Dispatchers.Main) {
                 _networkMessages.value = NetworkMessage.DrawStarted(results)
+            }
+        }
+    }
+
+    // 新增：房主开始军争模式游戏
+    fun startJunzhengGame(playerRoles: Map<String, String>, cardsPerPlayer: Int, totalImages: Int) {
+        if (!_isHost.value) return
+
+        scope.launch {
+            val players = _players.value
+            val totalCount = cardsPerPlayer * players.size
+
+            if (totalCount > totalImages) return@launch
+
+            // 随机抽取数字
+            val allNumbers = (1..totalImages).shuffled().take(totalCount)
+
+            // 分配给每个玩家
+            val results = players.mapIndexed { index, player ->
+                val startIdx = index * cardsPerPlayer
+                val endIdx = startIdx + cardsPerPlayer
+                DrawResult(player.id, allNumbers.subList(startIdx, endIdx))
+            }
+
+            // 广播游戏开始结果（包含角色信息）
+            val message = JSONObject().apply {
+                put("type", "junzheng_game")
+                put("results", JSONArray().apply {
+                    results.forEach { result ->
+                        put(JSONObject().apply {
+                            put("playerId", result.playerId)
+                            put("numbers", JSONArray(result.numbers))
+                        })
+                    }
+                })
+                put("roles", JSONObject(playerRoles))
+            }
+            broadcast(message.toString())
+
+            // 本地处理
+            withContext(Dispatchers.Main) {
+                _networkMessages.value = NetworkMessage.JunzhengGameStarted(results, playerRoles)
             }
         }
     }
