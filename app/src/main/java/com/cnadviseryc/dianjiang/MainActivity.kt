@@ -1,3 +1,4 @@
+// MainActivity.kt - 添加了军争模式切换功能
 package com.cnadviseryc.dianjiang
 
 import android.content.Intent
@@ -32,8 +33,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var loadingText: TextView
     private lateinit var joinRoomButton: Button
+    private lateinit var modeSwitch: Button  // 新增：模式切换按钮
     private var imageFiles = mutableListOf<File>()
     private var hasUploadedImages = false
+    private var isJunzhengMode = false  // 新增：false = 国战模式, true = 军争模式
+
+    // 新增：SharedPreferences
+    private val PREFS_NAME = "DianjiangPrefs"
+    private val KEY_IMAGE_PATHS = "imagePaths"
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -55,6 +62,10 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         loadingText = findViewById(R.id.loadingText)
         joinRoomButton = findViewById(R.id.joinRoomButton)
+        modeSwitch = findViewById(R.id.modeSwitch)  // 新增
+
+        // 新增：恢复上次保存的图包
+        loadSavedImages()
 
         // 初始状态：禁用开始抽取和联机按钮
         updateButtonStates()
@@ -69,6 +80,24 @@ class MainActivity : AppCompatActivity() {
 
         joinRoomButton.setOnClickListener {
             showJoinRoomDialog()
+        }
+
+        // 新增：模式切换按钮
+        modeSwitch.setOnClickListener {
+            isJunzhengMode = !isJunzhengMode
+            updateModeSwitch()
+        }
+        updateModeSwitch()
+    }
+
+    // 新增：更新模式切换按钮显示
+    private fun updateModeSwitch() {
+        if (isJunzhengMode) {
+            modeSwitch.text = "当前:军争模式"
+            modeSwitch.setBackgroundColor(ContextCompat.getColor(this, android.R.color.holo_orange_light))
+        } else {
+            modeSwitch.text = "当前:国战模式"
+            modeSwitch.setBackgroundColor(ContextCompat.getColor(this, android.R.color.holo_blue_light))
         }
     }
 
@@ -107,6 +136,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndJoinRoom(playerId: String) {
+        android.util.Log.d("MainActivity", "checkAndJoinRoom 开始，playerId: $playerId")
+        android.util.Log.d("MainActivity", "isJunzhengMode: $isJunzhengMode")
+        android.util.Log.d("MainActivity", "imageFiles数量: ${imageFiles.size}")
+
         // 显示等待对话框
         val progressDialog = AlertDialog.Builder(this)
             .setTitle("正在搜索房间...")
@@ -128,6 +161,7 @@ class MainActivity : AppCompatActivity() {
                 // 启动服务发现
                 tempNetworkService.startDiscovery { found ->
                     roomFound = found
+                    android.util.Log.d("MainActivity", "房间发现结果: $found")
                 }
 
                 // 等待最多3秒
@@ -140,15 +174,24 @@ class MainActivity : AppCompatActivity() {
             }
 
             progressDialog.dismiss()
+            android.util.Log.d("MainActivity", "房间搜索完成，roomFound: $roomFound")
 
             try {
                 val intent = Intent(this@MainActivity, RoomActivity::class.java)
                 intent.putExtra("playerId", playerId)
-                intent.putExtra("imageFiles", ArrayList(imageFiles))
-                intent.putExtra("createRoom", !roomFound)
 
+                // 修改：传递文件路径而非File对象
+                val imagePaths = ArrayList(imageFiles.map { it.absolutePath })
+                intent.putStringArrayListExtra("imagePaths", imagePaths)
+
+                intent.putExtra("createRoom", !roomFound)
+                intent.putExtra("isJunzhengMode", isJunzhengMode)  // 新增：传递模式信息
+
+                android.util.Log.d("MainActivity", "准备启动RoomActivity")
                 startActivity(intent)
+                android.util.Log.d("MainActivity", "RoomActivity已启动")
             } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "启动RoomActivity失败", e)
                 Toast.makeText(
                     this@MainActivity,
                     "启动失败: ${e.message}",
@@ -156,6 +199,30 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    // 以下代码保持原样，包括 handleZipFile, showLoading, getFileName 等方法
+    // ... (其余代码与原文件相同)
+
+    private fun startExtraction() {
+        val count = countInput.text.toString().toIntOrNull()
+        if (count == null || count <= 0) {
+            Toast.makeText(this, "请输入有效的抽取个数", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (count > imageFiles.size) {
+            Toast.makeText(this, "输入数字超过可用图片数量", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 随机抽取指定数量的图片
+        val selectedFiles = imageFiles.shuffled().take(count)
+
+        val intent = Intent(this, SelectionActivity::class.java)
+        intent.putStringArrayListExtra("imagePaths",
+            ArrayList(selectedFiles.map { it.absolutePath }))
+        startActivity(intent)
     }
 
     private fun handleZipFile(uri: Uri) {
@@ -190,6 +257,7 @@ class MainActivity : AppCompatActivity() {
                 if (count > 0) {
                     hasUploadedImages = true
                     updateButtonStates()
+                    saveImagePaths()  // 新增：保存图包路径
                     Toast.makeText(this@MainActivity, "已加载 $count 张武将", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this@MainActivity, "未找到武将图片", Toast.LENGTH_SHORT).show()
@@ -209,11 +277,13 @@ class MainActivity : AppCompatActivity() {
             uploadButton.isEnabled = false
             startButton.isEnabled = false
             joinRoomButton.isEnabled = false
+            modeSwitch.isEnabled = false  // 新增
             countInput.isEnabled = false
         } else {
             progressBar.visibility = View.GONE
             loadingText.visibility = View.GONE
             uploadButton.isEnabled = true
+            modeSwitch.isEnabled = true  // 新增
             countInput.isEnabled = true
             updateButtonStates()
         }
@@ -232,10 +302,12 @@ class MainActivity : AppCompatActivity() {
         return result
     }
 
-    private fun handleRarFile(uri: Uri, tempDir: File) {
-        val tempRar = File.createTempFile("temp", ".rar", cacheDir)
+    private fun handleRarFile(uri: Uri, targetDir: File): Int {
+        var count = 0
+        val tempRar = File(cacheDir, "temp.rar")
+
         contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(tempRar).use { output ->
+            tempRar.outputStream().use { output ->
                 input.copyTo(output)
             }
         }
@@ -244,67 +316,81 @@ class MainActivity : AppCompatActivity() {
             var fileHeader: FileHeader? = archive.nextFileHeader()
             while (fileHeader != null) {
                 if (!fileHeader.isDirectory && isImageFile(fileHeader.fileName)) {
-                    val fileName = File(fileHeader.fileName).name
-                    val file = File(tempDir, fileName)
-                    FileOutputStream(file).use { output ->
+                    val outputFile = File(targetDir, getSimpleFileName(fileHeader.fileName))
+                    FileOutputStream(outputFile).use { output ->
                         archive.extractFile(fileHeader, output)
                     }
-                    imageFiles.add(file)
+                    imageFiles.add(outputFile)
+                    count++
                 }
                 fileHeader = archive.nextFileHeader()
             }
         }
 
         tempRar.delete()
+        return count
     }
 
-    private fun handleZipArchive(uri: Uri, tempDir: File) {
-        contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(input).use { zip ->
-                var entry = zip.nextEntry
+    private fun handleZipArchive(uri: Uri, targetDir: File): Int {
+        var count = 0
+        contentResolver.openInputStream(uri)?.use { inputStream ->
+            ZipInputStream(inputStream).use { zis ->
+                var entry = zis.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory && isImageFile(entry.name)) {
-                        val fileName = File(entry.name).name
-                        val file = File(tempDir, fileName)
-                        FileOutputStream(file).use { output ->
-                            zip.copyTo(output)
+                        val fileName = getSimpleFileName(entry.name)
+                        val outputFile = File(targetDir, fileName)
+                        FileOutputStream(outputFile).use { output ->
+                            zis.copyTo(output)
                         }
-                        imageFiles.add(file)
+                        imageFiles.add(outputFile)
+                        count++
                     }
-                    entry = zip.nextEntry
+                    entry = zis.nextEntry
                 }
             }
         }
+        return count
     }
 
-    private fun isImageFile(name: String): Boolean {
-        val ext = name.substringAfterLast('.', "").lowercase()
-        return ext in listOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
+    private fun isImageFile(fileName: String): Boolean {
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        return extension in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
     }
 
-    private fun startExtraction() {
-        if (imageFiles.isEmpty()) {
-            Toast.makeText(this, "请先上传将包", Toast.LENGTH_SHORT).show()
-            return
+    private fun getSimpleFileName(path: String): String {
+        return path.substringAfterLast('/')
+            .substringAfterLast('\\')
+    }
+
+    // 新增：保存图包路径
+    private fun saveImagePaths() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val paths = imageFiles.map { it.absolutePath }.toSet()
+        prefs.edit().putStringSet(KEY_IMAGE_PATHS, paths).apply()
+        android.util.Log.d("MainActivity", "保存了 ${paths.size} 个图片路径")
+    }
+
+    // 新增：加载保存的图包
+    private fun loadSavedImages() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val paths = prefs.getStringSet(KEY_IMAGE_PATHS, null)
+
+        if (paths != null && paths.isNotEmpty()) {
+            imageFiles.clear()
+            paths.forEach { path ->
+                val file = File(path)
+                if (file.exists()) {
+                    imageFiles.add(file)
+                }
+            }
+
+            if (imageFiles.isNotEmpty()) {
+                imageFiles.sortBy { it.nameWithoutExtension.toIntOrNull() ?: 0 }
+                hasUploadedImages = true
+                android.util.Log.d("MainActivity", "恢复了 ${imageFiles.size} 张图片")
+                Toast.makeText(this, "已自动加载上次的图包 (${imageFiles.size}张)", Toast.LENGTH_SHORT).show()
+            }
         }
-
-        val count = countInput.text.toString().toIntOrNull()
-        if (count == null || count <= 0) {
-            Toast.makeText(this, "请输入有效的抽取个数", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (count > imageFiles.size) {
-            Toast.makeText(this, "抽取个数不能大于武将总数", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val randomIndices = imageFiles.indices.shuffled().take(count)
-        val selectedFiles = randomIndices.map { imageFiles[it] }
-
-        val intent = Intent(this, SelectionActivity::class.java)
-        intent.putStringArrayListExtra("imagePaths",
-            ArrayList(selectedFiles.map { it.absolutePath }))
-        startActivity(intent)
     }
 }
