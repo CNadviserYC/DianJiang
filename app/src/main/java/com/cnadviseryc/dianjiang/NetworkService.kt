@@ -33,6 +33,7 @@ sealed class NetworkMessage {
     data class RoomDismissed(val reason: String) : NetworkMessage()
     data class PlayerList(val players: List<Player>) : NetworkMessage()
     data class RoomConfig(val isJunzhengMode: Boolean) : NetworkMessage()  // 新增：房间配置
+    data class JoinError(val reason: String) : NetworkMessage()  // 新增：加入错误
 }
 
 class NetworkService(private val context: Context) {
@@ -390,6 +391,22 @@ class NetworkService(private val context: Context) {
             when (type) {
                 "join" -> {
                     val playerId = json.getString("playerId")
+
+                    // 新增：检测ID是否已存在
+                    val existingPlayer = _players.value.find { it.id == playerId }
+                    if (existingPlayer != null) {
+                        // ID已存在，拒绝加入并通知客户端
+                        if (client != null) {
+                            val errorMessage = JSONObject().apply {
+                                put("type", "joinError")
+                                put("reason", "ID已存在，请更换ID")
+                            }
+                            client.send(errorMessage.toString())
+                            Log.d(TAG, "拒绝玩家 $playerId 加入：ID已存在")
+                        }
+                        return
+                    }
+
                     client?.playerId = playerId
 
                     val newPlayer = Player(playerId, false, false)
