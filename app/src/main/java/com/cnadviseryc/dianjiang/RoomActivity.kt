@@ -307,6 +307,14 @@ class RoomActivity : AppCompatActivity() {
                             }
                         }
                     }
+                    // 新增：处理加入错误
+                    is NetworkMessage.JoinError -> {
+                        runOnUiThread {
+                            Toast.makeText(this@RoomActivity, message.reason, Toast.LENGTH_LONG).show()
+                            // 返回主界面重新输入ID
+                            finish()
+                        }
+                    }
                     else -> {}
                 }
             }
