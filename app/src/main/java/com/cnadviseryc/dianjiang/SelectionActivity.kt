@@ -72,8 +72,18 @@ class SelectionActivity : AppCompatActivity() {
         android.util.Log.d("SelectionActivity", "playerRole: $playerRole")
         android.util.Log.d("SelectionActivity", "maxSelection: $maxSelection")
 
-        // 新增：根据模式设置标题
-        if (isJunzhengMode) {
+        // 新增：根据模式和身份设置标题
+        if (isJunzhengMode && playerRole != null) {
+            // 军争模式：显示身份信息
+            val roleText = when (playerRole) {
+                "zhugong" -> "主公"
+                "fanzei" -> "反贼"
+                "neijian" -> "内奸"
+                "zhongchen" -> "忠臣"
+                else -> "未知"
+            }
+            titleText.text = "你的身份为$roleText，请选择一位武将"
+        } else if (isJunzhengMode) {
             titleText.text = "请选择一位武将"
         } else {
             titleText.text = "请选择两位武将"
